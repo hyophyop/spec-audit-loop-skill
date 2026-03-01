@@ -1,6 +1,6 @@
 ---
 name: spec-audit-loop
-description: Run a spec-first implementation workflow with independent Spark Custom Agent audits, capability/evidence gates, and progress recovery. Use when work must proceed by repeatedly updating/expanding docs/spec/checklists, implementing code, validating with tests, and reconciling roadmap/matrix/gap-log status until requirements reach 100% DONE.
+description: Run a spec-first implementation workflow with independent Spark Custom Agent audits, capability/evidence gates, and progress recovery. Use when work must proceed by repeatedly updating/expanding docs/spec/checklists, implementing code, validating with tests, and reconciling roadmap/matrix/gap-log status until repository-wide requirements in the global tracker reach 100% DONE.
 ---
 
 # Spec Audit Loop
@@ -27,7 +27,9 @@ Standard artifact path convention:
 
 Primary objective:
 
-- If there is no blocker that requires user intervention, continue autonomously until current document scope reaches `100%` by the defined progress formula.
+- If there is no blocker that requires user intervention, continue autonomously until repository-wide progress reaches `100%` by the defined progress formula.
+- Official completion target is always `repository` scope based on the repository-wide tracker requirement set.
+- `loop` scope may be tracked as a local execution metric for the current round, but it is never a completion target.
 - Hand control back to the user only for real blockers (missing credentials/access, destructive decision approval, unavailable required tooling, or ambiguous high-risk product decision).
 
 ## Inputs To Lock
@@ -39,8 +41,32 @@ Collect and lock these inputs before making edits.
 - `validation_docs`: matrix + gap-log documents
 - `req_ids`: requirement IDs for this loop (for example `P8-R01~R07`)
 - `test_cmd`: verification command (for example `cargo test --quiet`)
+- `progress_scope`: `repository` or `loop` (`repository` is default and official)
+- `global_tracker_doc` (required): repository-wide requirement tracker document used for official progress/rejudge
 
 If one input is missing, infer the safest default from repository conventions and record the assumption in the loop summary.
+If `global_tracker_doc` is missing, create/bootstrap it before scope freeze and initialize requirement rows from current docs.
+Unless the user explicitly asks for diagnostic loop-only reporting, force `progress_scope=repository`.
+
+## Progress Scope Resolution
+
+Always resolve progress scope before freezing requirements.
+
+1. Determine scope:
+   - Default to `repository` scope.
+   - Use `loop` scope only for temporary round diagnostics when explicitly requested.
+2. In `repository` scope:
+   - Build/lock the full requirement set from `global_tracker_doc`.
+   - Use this full set as the official progress denominator.
+   - Do not declare global `100%` from a subset round, even if that round is `100%`.
+   - Round artifacts remain evidence snapshots; official completion is based on tracker-wide statuses only.
+3. In `loop` scope:
+   - Treat `100%` as local round completion only for locked `req_ids`.
+   - Never use loop-local `100%` to declare repository completion.
+4. Reporting rule:
+   - Always report `repository_progress`.
+   - If loop diagnostics are used, report `loop_progress` separately.
+   - Never present `loop_progress=100%` as repository-wide completion.
 
 ## Bundled Script
 
@@ -60,6 +86,7 @@ When this skill is used in a repository for the first time, establish minimal re
 - If present but missing policy, append/update only the minimal rules:
   - document-driven implementation/audit/rejudge loop uses `spec-audit-loop`
   - `DONE`/phase completion/`100%` declaration follows this skill's Completion Gate and Auto-Reopen/Rejudge
+  - official progress and `100%` completion use repository tracker scope; loop progress is supplemental only
 - Ensure repository policy pins the skill contract version:
   - `spec-audit-loop@2026.03.01`
 - Ensure repository policy includes the artifact root:
@@ -104,7 +131,7 @@ Run this loop in order.
 10. Apply autonomous remediation for obvious audit findings.
 11. Recompute progress and next queue.
 
-Repeat until all target requirements are `DONE`.
+Repeat until all requirements in `global_tracker_doc` are `DONE`.
 
 ## Step 0: Verify Spark Custom Agent Availability And Profile
 
@@ -142,6 +169,7 @@ Update docs before implementation.
 
 - Declare target `req_ids` and acceptance criteria in `phase_doc`.
 - Reflect current expected status in `roadmap_doc`.
+- Ensure target `req_ids` are synchronized with `global_tracker_doc` before implementation.
 - Ensure validation matrix rows exist for all target IDs.
 - Add missing gaps to gap-log as `Open` if any dependency is not yet wired.
 
@@ -241,7 +269,7 @@ Only pause for user input when remediation requires a blocker-level decision.
 When audits find a clear contradiction to current status, reopen immediately.
 
 - If a `DONE` requirement is reported `PARTIAL`/`PENDING`, reopen it and append a new gap-log item.
-- Recompute progress with the official formula and publish the downgraded percentage in the same loop report.
+- Recompute repository progress with the official formula and publish the downgraded percentage in the same loop report.
 - Keep previous verdict as history, but mark it superseded by latest audit round.
 - Continue implementation loop automatically unless blocker-level input is required.
 - Run the bundled script and store round output:
@@ -251,13 +279,16 @@ When audits find a clear contradiction to current status, reopen immediately.
 
 ## Step 5: Recompute Progress And Next Queue
 
-Calculate progress with the fixed formula.
+Calculate progress with the fixed formula against repository-wide tracker requirements.
 
 - Formula: `(DONE + 0.5 * PARTIAL) / TOTAL * 100`
-- Report counts and percentage.
-- Publish next queue as only non-`DONE` requirement IDs.
+- `repository_progress` is official and must use the full requirement set from `global_tracker_doc`.
+- Report counts and `repository_progress` percentage in every loop report.
+- Publish next queue as only non-`DONE` requirement IDs from `global_tracker_doc`.
 
-If all target IDs are `DONE`, declare phase progress `100%` and set phase state to completed.
+If all tracker requirements are `DONE`, declare global progress `100%` and set phase/repository state to completed.
+If `loop_progress` is tracked and reaches `100%`, report it only as local round status.
+When both loop and repository values are tracked, never collapse them into one percentage.
 If some IDs are not `DONE` and no blocker exists, continue the loop instead of handing off.
 
 Do not declare `100%` while unresolved `ASSUMPTION:` markers remain in active scope docs.
@@ -362,6 +393,7 @@ Apply these guardrails every loop.
 - Avoid premature handoff; continue iterating until `100%` unless blocker-level user input is required.
 - Avoid unchecked profile drift; re-check Spark Custom Agent profile at each new loop round.
 - Avoid stale `100%`; auto-reopen and progress rejudge when new blocking findings appear.
+- Avoid scope ambiguity; treat `repository_progress` as official and `loop_progress` as supplemental only.
 - Avoid silent doc gaps; bootstrap required docs before progressing implementation.
 - Avoid assumption leakage; tag and track assumptions until resolved or explicitly accepted.
 
@@ -376,7 +408,7 @@ Return a compact loop report with:
 - `progress_rejudge.py` output summary and reopened list
 - Doc bootstrap/expansion actions and active `ASSUMPTION:` list
 - Round artifact path and file list
-- Updated progress percentage
+- Updated progress percentage(s) with explicit scope label (`repository` required; `loop` optional diagnostic)
 - Next queue
 
 Use the markdown templates in `references/templates.md`.

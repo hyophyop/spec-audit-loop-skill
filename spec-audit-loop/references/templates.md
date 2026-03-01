@@ -8,6 +8,7 @@
 - 이 저장소는 `spec-audit-loop@2026.03.01` 버전을 기준으로 운영한다.
 - 본 저장소의 문서 기반 구현/감사/진척도 재판정 루프는 반드시 `spec-audit-loop` 스킬로 수행한다.
 - `DONE` 승격/Phase 완료/100% 선언은 `spec-audit-loop`의 Completion Gate와 Auto-Reopen/Rejudge 규칙을 따른다.
+- 공식 진척률 및 100% 완료 기준은 저장소 전역 요구사항(`global_tracker_doc`) 기준으로 판단한다.
 - 감사 산출물 표준 루트는 `artifacts/spec-audit-loop/`로 고정한다.
 ```
 
