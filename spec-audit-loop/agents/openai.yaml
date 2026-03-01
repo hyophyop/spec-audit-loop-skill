@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spec Audit Loop"
+  short_description: "Spec loop with Spark audit + capability/evidence gates"
+  default_prompt: "Use $spec-audit-loop to run a spec-first implementation loop with Spark Custom Agent audit, gray-box verification, and capability/evidence gate enforcement."
