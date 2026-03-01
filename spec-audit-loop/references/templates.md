@@ -10,6 +10,42 @@
 - `DONE` 승격/Phase 완료/100% 선언은 `spec-audit-loop`의 Completion Gate와 Auto-Reopen/Rejudge 규칙을 따른다.
 - 공식 진척률 및 100% 완료 기준은 저장소 전역 요구사항(`global_tracker_doc`) 기준으로 판단한다.
 - 감사 산출물 표준 루트는 `artifacts/spec-audit-loop/`로 고정한다.
+
+## 이슈 트래커 동기화 규칙 (Linear/GitHub)
+
+- 각 요구사항 행에는 `source_issue`(`GH-123`, `LIN-456` 등)를 필수로 기록한다.
+- 외부 이슈 상태 동기화 시점은 `scope freeze`, `post-rejudge`, `completion declaration`으로 고정한다.
+- 외부 이슈 종료는 내부 요구사항이 `DONE`이고 Evidence Gate + Spark Audit/Gray-Box가 모두 통과한 경우에만 허용한다.
+- Audit/Rejudge에서 `DONE -> PARTIAL/PENDING` 강등이 발생하면 외부 이슈를 즉시 재오픈하고 최신 라운드 산출물 경로를 기록한다.
+- 상태 매핑표를 문서에 고정하고 일관되게 사용한다.
+- GitHub 이슈 상태만 사용하는 저장소에서는 `PENDING`/`PARTIAL`이 모두 `open`이므로 내부 tracker 상태와 동기화 코멘트로 구분한다.
+
+| Internal | GitHub Issue State | GitHub Project Status (if used) | Linear Status |
+|---|---|---|---|
+| `PENDING` | `open` | `Todo` | `Backlog` or `Todo` |
+| `PARTIAL` | `open` | `In Progress` | `In Progress` or `In Review` |
+| `DONE` | `closed` | `Done` | `Done` |
+```
+
+## -0.9) Issue Tracker Sync Comment Template
+
+Use when updating GitHub/Linear issues at required checkpoints.
+
+```markdown
+### Tracker Sync
+- source_issue: <GH-123 | LIN-456>
+- checkpoint: <scope-freeze | post-rejudge | completion-declaration>
+- internal_status: <PENDING | PARTIAL | DONE>
+- github_issue_state: <open | closed>
+- github_project_status: <Todo | In Progress | Done | n/a>
+- linear_status: <Backlog | Todo | In Progress | In Review | Done | n/a>
+- evidence:
+  - spec: <path#section>
+  - code: <entrypoint -> callee path>
+  - test: <file::case + pass/fail>
+  - audit: <round audit path>
+  - graybox: <round graybox path>
+- reopen_reason: <if downgraded>
 ```
 
 ## -0.5) Documentation Bootstrap File Set Template
@@ -31,6 +67,15 @@ Use when required docs are missing.
 
 ## Assumptions
 - ASSUMPTION: <inferred item>
+```
+
+`global_tracker_doc.md`
+```markdown
+# Global Requirement Tracker
+
+| Req ID | Title | Status | Phase | source_issue | Spec Ref | Last Rejudge | Notes |
+|---|---|---|---|---|---|---|---|
+| R01 | <title> | PENDING | P1 | GH-123 / LIN-456 | phase_doc.md#requirements | - | - |
 ```
 
 `roadmap_doc.md`
